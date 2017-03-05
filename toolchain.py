@@ -188,6 +188,20 @@ def get_coll_name_by_index(coll_maps):
             return collname
 
 
+def get_doc_id_by_index(doc_list):
+    while True:
+        for idx, doc in enumerate(doc_list):
+            click.echo('[{}] {}'.format(idx, doc))
+        click.echo('[] 안의 번호를 입력해주세요. [2] dwkim 을 선택한다면 2')
+        doc_idx = click.prompt('작업을 수행할 doc 번호', type=int)
+        try:
+            doc_id = doc_list[doc_idx]
+        except IndexError:
+            click.echo('잘못입력했습니다. 종료하려면 Ctrl+D')
+        else:
+            return doc_id
+
+
 def get_barcode_file():
     while True:
         file = click.prompt('바코드 파일 위치', type=str)
@@ -222,8 +236,8 @@ def extract():
         db_maps = {idx + 1: dbname for idx, dbname in enumerate(db_list)}
         dbname = get_db_name_by_index(db_maps)
 
-    coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(client[dbname].collection_names())
-                 if coll_name.endswith('joined')}
+    revised_coll_list = [coll for coll in client[dbname].collection_names() if coll.endswith('joined')]
+    coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(revised_coll_list)}
     collname = get_coll_name_by_index(coll_maps)
     file = get_barcode_file()
 
@@ -237,6 +251,30 @@ def extract():
             select_mongodb_by_barcode(source_coll, dest_coll, key, barcode)
     upsert_result(dest_coll)
 
+
+@mongodb.command()
+def extract_to_file():
+    client = connect_to_mongodb()
+
+    click.echo('mongodb에 있는 extract된 데이터를 파일로 뽑습니다.')
+
+    db_list = client.database_names()
+    db_list.remove('admin')
+    db_list.remove('local')
+    db_maps = {idx + 1: dbname for idx, dbname in enumerate(db_list)}
+    dbname = get_db_name_by_index(db_maps)
+
+    revised_coll_list = [coll for coll in client[dbname].collection_names() if coll.endswith('extracted')]
+    coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(revised_coll_list)}
+    collname = get_coll_name_by_index(coll_maps)
+
+    doc_list = [data['_id'] for data in client[dbname][collname].find() if data['_id'] != 'result_info']
+    doc_id = get_doc_id_by_index(doc_list)
+
+    with open('{}.txt'.format(doc_id), 'w') as f:
+        data = client[dbname][collname].find_one({'_id': doc_id})['extracted_data']
+        for row in data:
+            f.write('{}\n'.format(row['seq']))
 
 if __name__ == '__main__':
     mongodb()
