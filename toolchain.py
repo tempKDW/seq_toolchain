@@ -154,7 +154,7 @@ def select_mongodb_by_barcode(source_coll, dest_coll, key, barcode):
     barcode = barcode.upper()
     extracted_data = list(source_coll.find({'seq': {'$regex': barcode}}))
     dest_coll.insert_one({
-        'id': key,
+        '_id': key,
         'barcode': barcode,
         'extracted_data': extracted_data
     })
@@ -199,7 +199,7 @@ def get_barcode_file():
 def upsert_result(coll):
     for doc in coll.find({'_id': {'$ne': 'result_info'}}):
         coll.update({'_id': 'result_info'},
-                    {'$set': {doc['id']: len(doc['extracted_data'])}},
+                    {'$set': {doc['_id']: len(doc['extracted_data'])}},
                     upsert=True)
 
 
@@ -222,7 +222,8 @@ def extract():
         db_maps = {idx + 1: dbname for idx, dbname in enumerate(db_list)}
         dbname = get_db_name_by_index(db_maps)
 
-    coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(client[dbname].collection_names())}
+    coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(client[dbname].collection_names())
+                 if coll_name.endswith('joined')}
     collname = get_coll_name_by_index(coll_maps)
     file = get_barcode_file()
 
@@ -230,8 +231,10 @@ def extract():
     now = datetime.now()
     source_coll = client[dbname][collname]
     dest_coll = client[dbname]['{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'extracted')]
-    for key, barcode in barcode_maps.items():
-        select_mongodb_by_barcode(source_coll, dest_coll, key, barcode)
+    with click.progressbar(barcode_maps) as keys:
+        for key in keys:
+            barcode = barcode_maps[key]
+            select_mongodb_by_barcode(source_coll, dest_coll, key, barcode)
     upsert_result(dest_coll)
 
 
