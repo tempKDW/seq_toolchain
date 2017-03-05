@@ -127,6 +127,11 @@ def insert_joined_data(chunk):
             files_with_path.append('/'.join((path, file)))
 
     now = datetime.now()
+
+    joined_collname = '{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'joined')
+    db.create_collection(joined_collname)
+    db.get_collection(joined_collname).ensure_index([('seq', 'text')])
+
     with click.progressbar(files_with_path) as files:
         for file in files:
             chunked_data = read_from_fastq_file(file)
