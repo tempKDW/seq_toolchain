@@ -199,7 +199,6 @@ def get_barcode_file():
 
 
 def upsert_result(coll):
-    import pdb; pdb.set_trace()
     for doc in coll.find({'_id': {'$ne': 'result_info'}}):
         coll.update({'_id': 'result_info'},
                     {'$set': {doc['id']: len(doc['extracted_data'])}},
