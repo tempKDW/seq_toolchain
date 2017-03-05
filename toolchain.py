@@ -45,8 +45,6 @@ def init(db_name):
             raise DuplicatedDBName
 
     db = client[db_name]
-    db.create_collection('joined')
-    db.get_collection('joined').ensure_index([('seq', 'text')])
     return db
 
 
