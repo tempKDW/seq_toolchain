@@ -58,11 +58,11 @@ def bulk_insert(db, data, chunk_size, created_at):
     return
 
 
-def find_all_file_with_path(path, extension='.fastq'):
+def find_all_file_with_path(path, extensions=('.fastq', '.txt')):
     file_map = {}
     for (path, _, files) in os.walk(path):
         for file in files:
-            if not file.endswith(extension):
+            if not any([file.endswith(extension) for extension in extensions]):
                 continue
 
             file_map.setdefault(path, []).append(file)
@@ -80,8 +80,18 @@ def read_from_fastq_file(path):
                 continue
 
             yield {
-                'id': str(line.id),
                 'seq': str(line.seq)
+            }
+
+
+def read_from_txt_file(path):
+    with open(path, 'r') as f:
+        for line in f:
+            if not is_valid_seq_line(str(line)):
+                continue
+
+            yield {
+                'seq': str(line)
             }
 
 
@@ -115,7 +125,7 @@ def insert_joined_data(chunk):
         path = click.prompt('대상 폴더', type=str)
         file_map = find_all_file_with_path(path)
         for path, files in file_map.items():
-            click.echo('[{path}] fastq 파일이 {len} 개 있습니다.'.format(path=path, len=len(files)))
+            click.echo('[{path}] 파일이 {len} 개 있습니다.'.format(path=path, len=len(files)))
         if click.confirm('모두 맞나요?'):
             break
 
@@ -132,7 +142,14 @@ def insert_joined_data(chunk):
 
     with click.progressbar(files_with_path) as files:
         for file in files:
-            chunked_data = read_from_fastq_file(file)
+            if file.endswith('.fastq'):
+                chunked_data = read_from_fastq_file(file)
+            elif file.endswith('.txt'):
+                chunked_data = read_from_txt_file(file)
+            else:
+                click.echo('잘못된 형식의 파일입니다.')
+                click.get_current_context().abort()
+
             bulk_insert(db, chunked_data, chunk, now)
 
 
