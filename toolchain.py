@@ -193,13 +193,17 @@ def parse_barcode_file(file):
     return barcode_maps
 
 
-def select_mongodb_by_barcode(source_coll, dest_coll, key, barcode):
+async def select_mongodb_by_barcode(source_coll, dest_coll, key, barcode):
     barcode = barcode.upper()
-    extracted_data = list(source_coll.find({'seq': {'$regex': barcode}}))
+    # extracted_data = list(source_coll.find({'seq': {'$regex': barcode}}))
+    cursor = source_coll.find({'seq': {'$regex': barcode}})
+    data = []
+    for row in await cursor.to_list(length=100):
+        data.append(row)
     dest_coll.insert_one({
         '_id': key,
         'barcode': barcode,
-        'extracted_data': extracted_data
+        'extracted_data': data
     })
 
 
@@ -286,12 +290,19 @@ def extract():
 
     barcode_maps = parse_barcode_file(file)
     now = datetime.now()
+    client = connect_to_mongodb_with_motor()
     source_coll = client[dbname][collname]
     dest_coll = client[dbname]['{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'extracted')]
     with click.progressbar(barcode_maps) as keys:
+        tasks = []
         for key in keys:
             barcode = barcode_maps[key]
-            select_mongodb_by_barcode(source_coll, dest_coll, key, barcode)
+            tasks.append(select_mongodb_by_barcode(source_coll, dest_coll, key, barcode))
+            if len(tasks) >= 20:
+                loop.run_until_complete(asyncio.wait(tasks))
+                tasks = []
+
+    client = connect_to_mongodb()
     upsert_result(dest_coll)
 
 
