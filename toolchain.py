@@ -1,10 +1,12 @@
 # Author: Dongwook Kim / forestkeep21@naver.com
 
+import asyncio
 import click
 import click_completion
 import itertools
 import os
 import re
+import motor.motor_asyncio
 
 from Bio import SeqIO
 from datetime import datetime
@@ -14,6 +16,8 @@ from pymongo.errors import ServerSelectionTimeoutError
 click_completion.init()
 
 ENV_MONGODB_KEY = 'CURRENT_MONGODB'
+
+loop = asyncio.get_event_loop()
 
 
 class DuplicatedDBName(Exception):
@@ -34,6 +38,16 @@ def connect_to_mongodb():
         return client
 
 
+def connect_to_mongodb_with_motor():
+    try:
+        client = motor.motor_asyncio.AsyncIOMotorClient('localhost', 27017)
+        client.server_info()
+    except ServerSelectionTimeoutError:
+        raise DBConnectionFailed
+    else:
+        return client
+
+
 def make_db_name(username):
     return datetime.now().strftime('%Y%m%d%H%M%S') + '-' + username
 
@@ -42,19 +56,26 @@ def init(db_name):
     client = connect_to_mongodb()
 
     if db_name in client.database_names():
-            raise DuplicatedDBName
+        raise DuplicatedDBName
 
     db = client[db_name]
     return db
 
 
 def bulk_insert(db, data, chunk_size, created_at):
+    async def async_bulk_insert(coll, data):
+        await coll.insert_many(data)
+
     joined_collname = '{}-{}'.format(created_at.strftime('%Y%m%d%H%M%S'), 'joined')
+
+
+    tasks = []
     while True:
         chunked_data = list(itertools.islice(data, chunk_size))
         if not chunked_data:
             break
-        db[joined_collname].insert_many(chunked_data)
+        tasks.append(async_bulk_insert(db[joined_collname], chunked_data))
+    loop.run_until_complete(asyncio.wait(tasks))
     return
 
 
@@ -108,16 +129,20 @@ def mongodb():
 @click.option('--chunk', default=100000, type=int, help='한번에 디비로 넣는 사이즈입니다. 컴퓨터 성능에 따라 조정하세요.')
 def insert_joined_data(chunk):
     click.echo('data 를 mongodb에 집어넣는 작업을 시작합니다.')
-    db_name = click.prompt('디비명', type=str)
-    click.confirm(db_name + ' 으로 생성됩니다, 계속할까요?', abort=True)
 
-    try:
-        db = init(db_name)
-    except DuplicatedDBName:
-        click.echo(db_name + ' 는 이미 있는 이름입니다.')
-    except DBConnectionFailed:
-        click.echo('db 연결에 실패했습니다. mongoDB가 실행중인지 확인바랍니다.')
-        return
+    while True:
+        db_name = click.prompt('디비명', type=str)
+        click.confirm(db_name + ' 으로 생성됩니다, 계속할까요?', abort=True)
+
+        try:
+            db = init(db_name)
+        except DuplicatedDBName:
+            click.echo(db_name + ' 는 이미 있는 이름입니다.')
+        except DBConnectionFailed:
+            click.echo('db 연결에 실패했습니다. mongoDB가 실행중인지 확인바랍니다.')
+            click.get_current_context().abort()
+        else:
+            break
 
     os.environ[ENV_MONGODB_KEY] = db_name
 
@@ -137,9 +162,9 @@ def insert_joined_data(chunk):
     now = datetime.now()
 
     joined_collname = '{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'joined')
-    db.create_collection(joined_collname)
-    db.get_collection(joined_collname).ensure_index([('seq', 'text')])
+    db[joined_collname].ensure_index([('seq', 'text')])
 
+    db = connect_to_mongodb_with_motor()[db_name]
     with click.progressbar(files_with_path) as files:
         for file in files:
             if file.endswith('.fastq'):
@@ -149,6 +174,7 @@ def insert_joined_data(chunk):
             else:
                 click.echo('잘못된 형식의 파일입니다.')
                 click.get_current_context().abort()
+                return
 
             bulk_insert(db, chunked_data, chunk, now)
 
@@ -295,3 +321,4 @@ def extract_to_file():
 
 if __name__ == '__main__':
     mongodb()
+    loop.close()
