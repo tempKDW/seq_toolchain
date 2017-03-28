@@ -298,11 +298,12 @@ def extract():
         for key in keys:
             barcode = barcode_maps[key]
             tasks.append(select_mongodb_by_barcode(source_coll, dest_coll, key, barcode))
-            if len(tasks) >= 20:
+            if len(tasks) >= 10:
                 loop.run_until_complete(asyncio.wait(tasks))
                 tasks = []
 
     client = connect_to_mongodb()
+    dest_coll = client[dbname]['{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'extracted')]
     upsert_result(dest_coll)
 
 
