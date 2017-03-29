@@ -17,6 +17,8 @@ click_completion.init()
 
 ENV_MONGODB_KEY = 'CURRENT_MONGODB'
 
+MAX_THREAD_SIZE = 20
+
 loop = asyncio.get_event_loop()
 
 
@@ -75,7 +77,9 @@ def bulk_insert(db, data, chunk_size, created_at):
         if not chunked_data:
             break
         tasks.append(async_bulk_insert(db[joined_collname], chunked_data))
-    loop.run_until_complete(asyncio.wait(tasks))
+        if len(tasks) >= MAX_THREAD_SIZE:
+            loop.run_until_complete(asyncio.wait(tasks))
+            tasks = []
     return
 
 
@@ -297,7 +301,7 @@ def extract():
         for key in keys:
             barcode = barcode_maps[key]
             tasks.append(select_mongodb_by_barcode(source_coll, dest_coll, key, barcode))
-            if len(tasks) >= 20:
+            if len(tasks) >= MAX_THREAD_SIZE:
                 loop.run_until_complete(asyncio.wait(tasks))
                 tasks = []
 
