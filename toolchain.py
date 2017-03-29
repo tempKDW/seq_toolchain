@@ -126,7 +126,7 @@ def mongodb():
 
 
 @mongodb.command()
-@click.option('--chunk', default=100000, type=int, help='한번에 디비로 넣는 사이즈입니다. 컴퓨터 성능에 따라 조정하세요.')
+@click.option('--chunk', default=10000, type=int, help='한번에 디비로 넣는 사이즈입니다. 컴퓨터 성능에 따라 조정하세요.')
 def insert_joined_data(chunk):
     click.echo('data 를 mongodb에 집어넣는 작업을 시작합니다.')
 
