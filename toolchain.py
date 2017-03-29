@@ -196,9 +196,8 @@ def parse_barcode_file(file):
 async def select_mongodb_by_barcode(source_coll, dest_coll, key, barcode):
     barcode = barcode.upper()
     # extracted_data = list(source_coll.find({'seq': {'$regex': barcode}}))
-    cursor = source_coll.find({'seq': {'$regex': barcode}})
     data = []
-    for row in await cursor.to_list(length=100):
+    async for row in source_coll.find({'seq': {'$regex': barcode}}):
         data.append(row)
     dest_coll.insert_one({
         '_id': key,
