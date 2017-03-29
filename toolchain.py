@@ -298,7 +298,7 @@ def extract():
         for key in keys:
             barcode = barcode_maps[key]
             tasks.append(select_mongodb_by_barcode(source_coll, dest_coll, key, barcode))
-            if len(tasks) >= 10:
+            if len(tasks) >= 20:
                 loop.run_until_complete(asyncio.wait(tasks))
                 tasks = []
 
