@@ -55,28 +55,19 @@ def make_db_name(username):
 
 
 def init(db_name):
-    client = connect_to_mongodb()
-
-    if db_name in client.database_names():
-        raise DuplicatedDBName
-
-    db = client[db_name]
-    return db
+    return connect_to_mongodb()[db_name]
 
 
-def bulk_insert(db, data, chunk_size, created_at):
+def bulk_insert(db, data, chunk_size, coll_name):
     async def async_bulk_insert(coll, data):
         await coll.insert_many(data)
-
-    joined_collname = '{}-{}'.format(created_at.strftime('%Y%m%d%H%M%S'), 'joined')
-
 
     tasks = []
     while True:
         chunked_data = list(itertools.islice(data, chunk_size))
         if not chunked_data:
             break
-        tasks.append(async_bulk_insert(db[joined_collname], chunked_data))
+        tasks.append(async_bulk_insert(db[coll_name], chunked_data))
         if len(tasks) >= MAX_THREAD_SIZE:
             loop.run_until_complete(asyncio.wait(tasks))
             tasks = []
@@ -140,8 +131,6 @@ def insert_joined_data(chunk):
 
         try:
             db = init(db_name)
-        except DuplicatedDBName:
-            click.echo(db_name + ' 는 이미 있는 이름입니다.')
         except DBConnectionFailed:
             click.echo('db 연결에 실패했습니다. mongoDB가 실행중인지 확인바랍니다.')
             click.get_current_context().abort()
@@ -155,18 +144,25 @@ def insert_joined_data(chunk):
         file_map = find_all_file_with_path(path)
         for path, files in file_map.items():
             click.echo('[{path}] 파일이 {len} 개 있습니다.'.format(path=path, len=len(files)))
-        if click.confirm('모두 맞나요?'):
+
+        if file_map and click.confirm('모두 맞나요?'):
             break
+        else:
+            click.echo('경로에 파일이 없습니다. 종료하려면 Ctrl+D')
 
     files_with_path = []
     for path, files in file_map.items():
         for file in files:
             files_with_path.append('/'.join((path, file)))
 
-    now = datetime.now()
-
-    joined_collname = '{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'joined')
-    db[joined_collname].ensure_index([('seq', 'text')])
+    if click.prompt(u'기존에 있는 콜렉션에 합칠건가요?'):
+        revised_coll_list = [coll for coll in db.collection_names() if coll.endswith('joined')]
+        coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(revised_coll_list)}
+        joined_collname = get_coll_name_by_index(coll_maps)
+    else:
+        now = datetime.now()
+        joined_collname = '{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'joined')
+        db[joined_collname].ensure_index([('seq', 'text')])
 
     db = connect_to_mongodb_with_motor()[db_name]
     with click.progressbar(files_with_path) as files:
@@ -180,7 +176,7 @@ def insert_joined_data(chunk):
                 click.get_current_context().abort()
                 return
 
-            bulk_insert(db, chunked_data, chunk, now)
+            bulk_insert(db, chunked_data, chunk, joined_collname)
 
 
 def parse_barcode_file(file):
