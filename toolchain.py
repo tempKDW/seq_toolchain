@@ -155,7 +155,7 @@ def insert_joined_data(chunk):
         for file in files:
             files_with_path.append('/'.join((path, file)))
 
-    if click.prompt(u'기존에 있는 콜렉션에 합칠건가요?'):
+    if click.confirm(u'기존에 있는 콜렉션에 합칠건가요?'):
         revised_coll_list = [coll for coll in db.collection_names() if coll.endswith('joined')]
         coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(revised_coll_list)}
         joined_collname = get_coll_name_by_index(coll_maps)
