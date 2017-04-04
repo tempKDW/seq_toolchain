@@ -322,13 +322,16 @@ def extract_to_file():
     coll_maps = {idx + 1: coll_name for idx, coll_name in enumerate(revised_coll_list)}
     collname = get_coll_name_by_index(coll_maps)
 
-    doc_list = [data['_id'] for data in client[dbname][collname].find() if data['_id'] != 'result_info']
-    doc_id = get_doc_id_by_index(doc_list)
-
-    with open('{}.txt'.format(doc_id), 'w') as f:
-        data = client[dbname][collname].find_one({'_id': doc_id})['extracted_data']
-        for row in data:
-            f.write('{}\n'.format(row['seq']))
+    os.mkdir(collname)
+    for data in client[dbname][collname].find():
+        with open('{}/{}.txt'.format(collname, data['_id']), 'w') as f:
+            if data['_id'] == 'result_info':
+                data.pop('_id')
+                for key, value in data.items():
+                    f.write('{} : {}\n'.format(key, value))
+            else:
+                for row in data['extracted_data']:
+                    f.write('{}\n'.format(row['seq']))
 
 if __name__ == '__main__':
     mongodb()
