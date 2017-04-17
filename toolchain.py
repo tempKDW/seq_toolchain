@@ -60,7 +60,7 @@ def init(db_name):
 
 def bulk_insert(db, data, chunk_size, coll_name):
     async def async_bulk_insert(coll, data):
-        await coll.insert_many(data)
+        await coll.insert_many(data, ordered=False)
 
     tasks = []
     while True:
