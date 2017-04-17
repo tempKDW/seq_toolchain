@@ -71,6 +71,9 @@ def bulk_insert(db, data, chunk_size, coll_name):
         if len(tasks) >= MAX_THREAD_SIZE:
             loop.run_until_complete(asyncio.wait(tasks))
             tasks = []
+
+    if tasks:
+        loop.run_until_complete(asyncio.wait(tasks))
     return
 
 
@@ -300,6 +303,9 @@ def extract():
             if len(tasks) >= MAX_THREAD_SIZE:
                 loop.run_until_complete(asyncio.wait(tasks))
                 tasks = []
+
+        if tasks:
+            loop.run_until_complete(asyncio.wait(tasks))
 
     client = connect_to_mongodb()
     dest_coll = client[dbname]['{}-{}'.format(now.strftime('%Y%m%d%H%M%S'), 'extracted')]
