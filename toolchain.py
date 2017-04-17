@@ -99,7 +99,7 @@ def read_from_fastq_file(path):
                 continue
 
             yield {
-                'seq': str(line.seq)
+                'seq': str(line.seq).upper()
             }
 
 
@@ -110,7 +110,7 @@ def read_from_txt_file(path):
                 continue
 
             yield {
-                'seq': str(line)
+                'seq': str(line).upper()
             }
 
 
@@ -190,7 +190,7 @@ def parse_barcode_file(file):
             try:
                 barcode_maps[elements[0].strip()] = elements[1].strip()
             except IndexError:
-                click.echo('{} : {}'.format(file, line))
+                click.echo('{} : {}'.format(file, line.upper()))
                 click.echo('잘못된 형식의 바코드입니다.')
                 click.get_current_context().abort()
     return barcode_maps
@@ -200,7 +200,7 @@ async def select_mongodb_by_barcode(source_coll, dest_coll, key, barcode):
     barcode = barcode.upper()
     # extracted_data = list(source_coll.find({'seq': {'$regex': barcode}}))
     data = []
-    async for row in source_coll.find({'seq': {'$regex': barcode}}):
+    async for row in source_coll.find({'seq': {'$regex': barcode, '$options': 'i'}}):
         data.append(row)
     dest_coll.insert_one({
         '_id': key,
