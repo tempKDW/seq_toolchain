@@ -2,7 +2,8 @@ from collections import namedtuple
 from itertools import repeat, permutations
 
 import os
-import re
+
+from src.common import clean_seqs
 
 SEQUENCE = {'A', 'T', 'C', 'G'}
 SEQUENCE_STRING = ''.join(SEQUENCE)
@@ -18,11 +19,6 @@ THIRD_SEQ = SECOND_SEQ + 3
 FORTH_SEQ = THIRD_SEQ + 3
 
 output_folder = os.path.join(os.getcwd(), BASE_FOLDER_NAME, OUTPUT_FOLDER_NAME)
-
-
-def _clean_seqs(string):
-    m = re.match(r'[aAtTcCgG]+', string)
-    return m.group()
 
 
 def _replace_string(string, idx, replacement):
@@ -110,7 +106,7 @@ def get_input_file_and_wild(file_path):
         for line in f.readlines():
             try:
                 file, wild_seq = line.split(':')
-                wild_seq = _clean_seqs(wild_seq)
+                wild_seq = clean_seqs(wild_seq)
                 if not len(wild_seq) == 30:
                     raise BufferError(wild_seq)
             except ValueError:
