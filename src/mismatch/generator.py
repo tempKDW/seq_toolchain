@@ -3,7 +3,7 @@ from itertools import repeat, permutations
 
 import os
 
-from src.common import clean_seqs
+from src.common import clean_seqs, replace_string
 
 SEQUENCE = {'A', 'T', 'C', 'G'}
 SEQUENCE_STRING = ''.join(SEQUENCE)
@@ -19,10 +19,6 @@ THIRD_SEQ = SECOND_SEQ + 3
 FORTH_SEQ = THIRD_SEQ + 3
 
 output_folder = os.path.join(os.getcwd(), BASE_FOLDER_NAME, OUTPUT_FOLDER_NAME)
-
-
-def _replace_string(string, idx, replacement):
-    return string[:idx] + replacement + string[idx + 1:]
 
 
 def _select_two_index(length):
@@ -57,7 +53,7 @@ def generate_one_mismatch(seqs):
             if revised_seq == seq:
                 continue
             results.append((key.format(idx + 1, seq, revised_seq),
-                            _replace_string(seqs, idx, revised_seq)))
+                            replace_string(seqs, idx, revised_seq)))
 
     return results
 
