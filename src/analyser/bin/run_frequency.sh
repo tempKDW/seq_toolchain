@@ -1,3 +1,4 @@
 #!/bin/bash
-source ~/.virtualenv/test/bin/activate
+source ~/.virtualenv/frequency/bin/activate
 python ../frequency.py
+deactivate
