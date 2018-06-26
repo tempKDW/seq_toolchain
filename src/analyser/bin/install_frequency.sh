@@ -1,5 +1,5 @@
 #!/bin/bash
-python -m venv ~/.virtualenv/frequency
+python3 -m venv ~/.virtualenv/frequency
 source ~/.virtualenv/frequency/bin/activate
-pip install -U pip
+sudo pip install -U pip
 pip install biopython
