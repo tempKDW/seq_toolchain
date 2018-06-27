@@ -1,6 +1,7 @@
 import os
 import re
 from collections import namedtuple, defaultdict
+from pathlib import Path
 
 from Bio.pairwise2 import align
 from Bio.SubsMat.MatrixInfo import blosum62
@@ -55,12 +56,29 @@ def check_indel(sort_seqs, position, barcode):
 
 
 while True:
-    ref_file = os.path.join(os.getcwd(), input('reference 파일 > '))
+    ref_file = os.path.join(Path.home(), input('reference 파일 > '))
     if not ref_file.endswith('.txt'):
         ref_file += '.txt'
     if os.path.exists(ref_file):
         break
     print(ref_file + ' 이런 파일 없음')
+
+while True:
+    sort_base_folder = input('sort 폴더 (엔터 치면 reference 동일 위치) > ')
+    if not sort_base_folder:
+        sort_base_folder = os.path.dirname(ref_file)
+        break
+
+    sort_base_folder = os.path.join(Path.home(), sort_base_folder)
+    if os.path.exists(sort_base_folder):
+        break
+    print(sort_base_folder + ' 이런 폴더 없음')
+
+while True:
+    result_base_folder = os.path.join(Path.home(), input('result 폴더 > '))
+    if os.path.exists(result_base_folder):
+        break
+    print(result_base_folder + ' 이런 폴더 없음')
 
 while True:
     try:
@@ -87,7 +105,7 @@ for datum in ref_data:
     total = 0
 
     try:
-        with open(datum.file, 'r') as f:
+        with open(os.path.join(sort_base_folder, datum.file), 'r') as f:
             for line in f.readlines():
                 seqs = clean_seqs(line)
                 total += 1
@@ -124,8 +142,8 @@ for datum in ref_data:
     counts[datum.file]['normals'] = str(len(normals))
     counts[datum.file]['total'] = str(total)
 
-result_folder = os.path.join(os.getcwd(), 'result')
-indel_folder = os.path.join(os.getcwd(), 'result_indel')
+result_folder = os.path.join(result_base_folder, 'result')
+indel_folder = os.path.join(result_base_folder, 'result_indel')
 for folder in [result_folder, indel_folder]:
     if not os.path.exists(folder):
         os.mkdir(folder)
