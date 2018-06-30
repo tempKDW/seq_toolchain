@@ -56,7 +56,7 @@ def check_indel(sort_seqs, position, barcode):
 
 
 while True:
-    ref_file = os.path.join(Path.home(), input('reference 파일 > '))
+    ref_file = input('reference 파일 > ')
     if not ref_file.endswith('.txt'):
         ref_file += '.txt'
     if os.path.exists(ref_file):
@@ -69,13 +69,13 @@ while True:
         sort_base_folder = os.path.dirname(ref_file)
         break
 
-    sort_base_folder = os.path.join(Path.home(), sort_base_folder)
+    sort_base_folder = sort_base_folder
     if os.path.exists(sort_base_folder):
         break
     print(sort_base_folder + ' 이런 폴더 없음')
 
 while True:
-    result_base_folder = os.path.join(Path.home(), input('result 폴더 > '))
+    result_base_folder = input('result 폴더 > ')
     if os.path.exists(result_base_folder):
         break
     print(result_base_folder + ' 이런 폴더 없음')
