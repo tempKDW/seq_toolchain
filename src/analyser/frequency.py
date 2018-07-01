@@ -92,6 +92,7 @@ while True:
 with open(ref_file, 'r') as f:
     for line in f.readlines():
         sorting_file, barcode, full = line.split(':')
+        sorting_file += '.txt'
         barcode, full = clean_seqs(barcode), clean_seqs(full)
         start = len(full) - indel_start
         end = start + indel_len
