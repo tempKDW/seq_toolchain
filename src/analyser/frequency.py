@@ -93,7 +93,7 @@ with open(ref_file, 'r') as f:
     for line in f.readlines():
         sorting_file, barcode, full = line.split(':')
         sorting_file += '.txt'
-        barcode, full = clean_seqs(barcode), clean_seqs(full)
+        barcode, full = clean_seqs(barcode).upper(), clean_seqs(full).upper()
         start = len(full) - indel_start
         end = start + indel_len
         ref_data.append(ref_datum(sorting_file, barcode, full, (start, end)))
@@ -108,7 +108,7 @@ for datum in ref_data:
     try:
         with open(os.path.join(sort_base_folder, datum.file), 'r') as f:
             for line in f.readlines():
-                seqs = clean_seqs(line)
+                seqs = clean_seqs(line).upper()
                 total += 1
                 pref, psort, _, _, _ = align.localds(datum.full, seqs, blosum62, -10, -1)[0]
                 # pref, psort, _, _, _ = align.localms(datum.full, seqs, 5, -4, -2, -0.5)[0]
