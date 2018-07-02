@@ -43,132 +43,138 @@ def check_deletion(sort_seqs, except_position, barcode):
     return False
 
 
-def check_indel(sort_seqs, position, barcode):
-    seqs = sort_seqs[sort_seqs.find(barcode):]
-    index = 0
-    for seq in seqs:
-        if position[0] <= index <= position[1] and seq == '-':
-            return True
+def check_indel(sort_seqs, datum):
+    seqs = sort_seqs[sort_seqs.find(datum.barcode):]
+    cut_seqs = seqs[datum.position[0]:datum.position[1]]
+    cut_full = datum.full[datum.position[0]:datum.position[1]]
+    count = 0
+    for idx, _ in enumerate(cut_seqs):
+        if cut_seqs[idx] != cut_full[idx]:
+            count += 1
 
-        if seq != '-':
-            index += 1
-    return False
+    return True if count >= 2 else False
 
 
-while True:
-    ref_file = input('reference 파일 > ')
-    if not ref_file.endswith('.txt'):
-        ref_file += '.txt'
-    if os.path.exists(ref_file):
-        break
-    print(ref_file + ' 이런 파일 없음')
+def get_padding_seqs(ref, sort, index=0):
+    pref, psort, _, _, _ = align.localds(ref, sort, blosum62, -10, -1)[index]
+    return pref, psort
 
-while True:
-    sort_base_folder = input('sort 폴더 (엔터 치면 reference 동일 위치) > ')
-    if not sort_base_folder:
-        sort_base_folder = os.path.dirname(ref_file)
-        break
 
-    sort_base_folder = sort_base_folder
-    if os.path.exists(sort_base_folder):
-        break
-    print(sort_base_folder + ' 이런 폴더 없음')
+if __name__ == '__main__':
+    while True:
+        ref_file = input('reference 파일 > ')
+        if not ref_file.endswith('.txt'):
+            ref_file += '.txt'
+        if os.path.exists(ref_file):
+            break
+        print(ref_file + ' 이런 파일 없음')
 
-while True:
-    result_base_folder = input('result 폴더 > ')
-    if os.path.exists(result_base_folder):
-        break
-    print(result_base_folder + ' 이런 폴더 없음')
+    while True:
+        sort_base_folder = input('sort 폴더 (엔터 치면 reference 동일 위치) > ')
+        if not sort_base_folder:
+            sort_base_folder = os.path.dirname(ref_file)
+            break
 
-while True:
-    try:
-        indel_start = int(input('InDel 포지션(뒤부터) > '))
-        indel_len = int(input('InDel 몇개나? > '))
-    except TypeError:
-        print('오타 ㄴㄴ')
-    else:
-        break
+        sort_base_folder = sort_base_folder
+        if os.path.exists(sort_base_folder):
+            break
+        print(sort_base_folder + ' 이런 폴더 없음')
 
-with open(ref_file, 'r') as f:
-    for line in f.readlines():
-        sorting_file, barcode, full = line.split(':')
-        sorting_file += '.txt'
-        barcode, full = clean_seqs(barcode).upper(), clean_seqs(full).upper()
-        start = len(full) - indel_start
-        end = start + indel_len
-        ref_data.append(ref_datum(sorting_file, barcode, full, (start, end)))
+    while True:
+        result_base_folder = input('result 폴더 > ')
+        if os.path.exists(result_base_folder):
+            break
+        print(result_base_folder + ' 이런 폴더 없음')
 
-counts = defaultdict(dict)
-for datum in ref_data:
-    indels = []
-    normals = []
-    removed = []
-    total = 0
+    while True:
+        try:
+            indel_start = int(input('InDel 포지션(뒤부터) > '))
+            indel_len = int(input('InDel 몇개나? > '))
+        except TypeError:
+            print('오타 ㄴㄴ')
+        else:
+            break
 
-    try:
-        with open(os.path.join(sort_base_folder, datum.file), 'r') as f:
-            for line in f.readlines():
-                seqs = clean_seqs(line).upper()
-                total += 1
-                pref, psort, _, _, _ = align.localds(datum.full, seqs, blosum62, -10, -1)[0]
-                # pref, psort, _, _, _ = align.localms(datum.full, seqs, 5, -4, -2, -0.5)[0]
-                if (check_insertion(pref, datum.position)
-                        or check_deletion(psort, datum.position, datum.barcode)):
-                    removed.append(seqs)
-                elif check_indel(psort, datum.position, datum.barcode):
-                    indels.append(seqs)
-                else:
-                    start = seqs.find(datum.barcode)
-                    end = start + (len(datum.full) - len(datum.barcode))
-                    normals.append(seqs[start:end])
+    with open(ref_file, 'r') as f:
+        for line in f.readlines():
+            sorting_file, barcode, full = line.split(':')
+            sorting_file += '.txt'
+            barcode, full = clean_seqs(barcode).upper(), clean_seqs(full).upper()
+            start = len(full) - indel_start
+            end = start + indel_len
+            ref_data.append(ref_datum(sorting_file, barcode, full, (start, end)))
 
-    except FileNotFoundError:
-        print(datum.file + ' < 이런 이름의 파일 없음')
-        continue
-    else:
-        count = defaultdict(dict)
-        for seqs in normals:
-            for idx, seq in enumerate(seqs):
-                if seq in count[idx]:
-                    count[idx][seq] += 1
-                else:
-                    count[idx][seq] = 1
+    counts = defaultdict(dict)
+    for datum in ref_data:
+        indels = []
+        normals = []
+        removed = []
+        total = 0
 
-        counts[datum.file]['count'] = count
-        counts[datum.file]['ref'] = datum.full[datum.full.find(datum.barcode) + len(datum.barcode):]
+        try:
+            with open(os.path.join(sort_base_folder, datum.file), 'r') as f:
+                for line in f.readlines():
+                    seqs = clean_seqs(line).upper()
+                    total += 1
+                    pref, psort = get_padding_seqs(datum.full, seqs)
+                    # pref, psort, _, _, _ = align.localms(datum.full, seqs, 5, -4, -2, -0.5)[0]
+                    if (check_insertion(pref, datum.position)
+                            or check_deletion(psort, datum.position, datum.barcode)):
+                        removed.append(seqs)
+                    elif check_indel(psort, datum):
+                        indels.append(seqs)
+                    else:
+                        start = seqs.find(datum.barcode)
+                        end = start + (len(datum.full) - len(datum.barcode))
+                        normals.append(seqs[start:end])
 
-    counts[datum.file]['indels'] = str(len(indels))
-    counts[datum.file]['indel_seqs'] = indels
-    counts[datum.file]['removed'] = str(len(removed))
-    counts[datum.file]['normals'] = str(len(normals))
-    counts[datum.file]['total'] = str(total)
+        except FileNotFoundError:
+            print(datum.file + ' < 이런 이름의 파일 없음')
+            continue
+        else:
+            count = defaultdict(dict)
+            for seqs in normals:
+                for idx, seq in enumerate(seqs):
+                    if seq in count[idx]:
+                        count[idx][seq] += 1
+                    else:
+                        count[idx][seq] = 1
 
-result_folder = os.path.join(result_base_folder, 'result')
-indel_folder = os.path.join(result_base_folder, 'result_indel')
-for folder in [result_folder, indel_folder]:
-    if not os.path.exists(folder):
-        os.mkdir(folder)
+            counts[datum.file]['count'] = count
+            counts[datum.file]['ref'] = datum.full[datum.full.find(datum.barcode) + len(datum.barcode):]
 
-for file, data in counts.items():
-    with open(os.path.join(result_folder, file.split('.')[0] + '_count.txt'), 'w') as f:
-        buffer = []
-        buffer.append('-,' + ','.join(data['ref']))
-        buffer.append('A,' + ','.join([str(counts.get('A', 0)) for idx, counts in data['count'].items()]))
-        buffer.append('C,' + ','.join([str(counts.get('C', 0)) for idx, counts in data['count'].items()]))
-        buffer.append('G,' + ','.join([str(counts.get('G', 0)) for idx, counts in data['count'].items()]))
-        buffer.append('T,' + ','.join([str(counts.get('T', 0)) for idx, counts in data['count'].items()]))
-        buffer = [line + '\n' for line in buffer]
+        counts[datum.file]['indels'] = str(len(indels))
+        counts[datum.file]['indel_seqs'] = indels
+        counts[datum.file]['removed'] = str(len(removed))
+        counts[datum.file]['normals'] = str(len(normals))
+        counts[datum.file]['total'] = str(total)
 
-        f.writelines(buffer)
+    result_folder = os.path.join(result_base_folder, 'result')
+    indel_folder = os.path.join(result_base_folder, 'result_indel')
+    for folder in [result_folder, indel_folder]:
+        if not os.path.exists(folder):
+            os.mkdir(folder)
 
-    with open(os.path.join(result_folder, file.split('.')[0] + '_info.txt'), 'w') as f:
-        f.writelines([
-            'indel count: ' + data['indels'] + '\n',
-            'remove count: ' + data['removed'] + '\n',
-            'normal count: ' + data['normals'] + '\n',
-            'total count: ' + data['total'] + '\n',
-        ])
+    for file, data in counts.items():
+        with open(os.path.join(result_folder, file.split('.')[0] + '_count.txt'), 'w') as f:
+            buffer = []
+            buffer.append('-,' + ','.join(data['ref']))
+            buffer.append('A,' + ','.join([str(counts.get('A', 0)) for idx, counts in data['count'].items()]))
+            buffer.append('C,' + ','.join([str(counts.get('C', 0)) for idx, counts in data['count'].items()]))
+            buffer.append('G,' + ','.join([str(counts.get('G', 0)) for idx, counts in data['count'].items()]))
+            buffer.append('T,' + ','.join([str(counts.get('T', 0)) for idx, counts in data['count'].items()]))
+            buffer = [line + '\n' for line in buffer]
 
-    with open(os.path.join(indel_folder, file.split('.')[0] + '.txt'), 'w') as f:
-        data['indel_seqs'] = [datum + '\n' for datum in data['indel_seqs']]
-        f.writelines(data['indel_seqs'])
+            f.writelines(buffer)
+
+        with open(os.path.join(result_folder, file.split('.')[0] + '_info.txt'), 'w') as f:
+            f.writelines([
+                'indel count: ' + data['indels'] + '\n',
+                'remove count: ' + data['removed'] + '\n',
+                'normal count: ' + data['normals'] + '\n',
+                'total count: ' + data['total'] + '\n',
+            ])
+
+        with open(os.path.join(indel_folder, file.split('.')[0] + '.txt'), 'w') as f:
+            data['indel_seqs'] = [datum + '\n' for datum in data['indel_seqs']]
+            f.writelines(data['indel_seqs'])
